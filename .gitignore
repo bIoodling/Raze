@@ -1,0 +1,9 @@
+/RazeMacro/target/
+/dist/
+/previews/
+/installer/assets/
+*.pdb
+*.key
+*.activation
+.env*
+config.ini

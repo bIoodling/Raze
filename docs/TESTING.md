@@ -1,0 +1,39 @@
+# Validation and remaining checks
+
+Only disposable GitHub-hosted Windows runners are authorized. Do not execute these
+tools, builds, UI input automation or installers on the user's personal PC.
+
+Automated CI gates:
+- Original engine timing function compared with the supplied ZIP, ignoring formatting.
+- Rust formatting, Clippy with warnings denied, model and UI geometry unit tests.
+- Default development feature and development-disabled activation tests.
+- Own hidden HWND lifecycle: native EDIT replacement, rate validation, settings disk round trip,
+  binding duplicate/clear, close/cancel, cached development activation, and real Hold/Toggle/repeat/KPS
+  activation/stop state transitions with the injection worker disabled. No physical inputs.
+- Release compilation with the committed dependency lockfile.
+- Nineteen offscreen GDI renders (four app screens at 96/120/144/192 DPI plus three installer stages).
+- Silent installer and uninstaller, payload and both shortcut locations.
+- SHA-256 of the setup executable and downloadable evidence.
+
+Offscreen renders exercise the shared renderer and substitute text for native EDIT
+children. They are **not interactive screenshots** and do not prove native edit
+focus, dragging, display compositor cadence or keyboard event ordering.
+
+Interactive acceptance still requires an isolated Windows VM:
+- Compare all screens to the reference, including the native rate and key editors.
+- Move across mixed-DPI monitors and test native dragging without jitter.
+- Check Tab/Shift+Tab, Enter, Escape, Delete, paste, focus loss and capture cancellation.
+- Exercise CPS/KPS 1/500/950/1400 against an isolated counting target; measure actual
+  timing and CPU use. Unit tests and a build do not verify input throughput.
+- Check modifier combinations, duplicate bindings, release while focus changes,
+  hidden UI recovery, sleep/resume and clean exit during active output.
+- Check transitions, close/cancel reversal and presentation on a 165+ Hz display.
+  Animations use elapsed time and a 6 ms requested high-resolution waitable timer; Windows scheduling and
+  compositor limits mean a 165 Hz cadence is not guaranteed.
+- Check interactive install, optional desktop shortcut and launch-after-install.
+
+The installer uses a compact native three-stage front end around an embedded,
+silent Inno Setup engine for installation/uninstallation reliability. Its moving
+progress indicator is indeterminate; it does not invent a percentage. The R is a vector reconstruction,
+not an original supplied vector asset. No pixel-perfect or jitter-free certification
+has been performed. Development activation is not suitable for a production release.
