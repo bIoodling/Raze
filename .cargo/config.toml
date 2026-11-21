@@ -1,0 +1,3 @@
+# Keep customer installs independent of a separate Visual C++ runtime package.
+[target.x86_64-pc-windows-msvc]
+rustflags = ["-C", "target-feature=+crt-static"]

@@ -1,6 +1,6 @@
 # Raze Macro
 
-Windows development build of Raze Macro with a permanent black and purple interface.
+Windows 10/11 x64 development build of Raze Macro with a permanent black and purple interface.
 The original 1–1400 CPS/KPS engine timing loop is preserved.
 
 ## Development activation
@@ -16,7 +16,7 @@ feature rejects the development key; production licensing is not implemented.
 ## Use
 
 Install `Raze-Macro-Setup.exe` from the Windows Actions artifact. Rust and Cargo
-are not required on the customer's machine. Open settings with the compact
+are not required on the customer's machine. The MSVC runtime is linked statically. Open settings with the compact
 dashboard's ellipsis, or press Enter while the dashboard has focus.
 Assign Hold Key and Toggle UI; KPS also requires Spam Key.
 Select CPS/KPS, enter a rate from 1 to 1400, then choose Toggle or Hold.

@@ -878,15 +878,18 @@ unsafe fn tick_animation() {
         })
     };
     if let Some((w, h, done)) = dimensions {
-        SetWindowPos(
-            HWND_MAIN,
-            null_mut(),
-            0,
-            0,
-            w,
-            h,
-            SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE,
-        );
+        let mut current: RECT = zeroed();
+        GetWindowRect(HWND_MAIN, &mut current);
+        let mut monitor: MONITORINFO = zeroed();
+        monitor.cbSize = size_of::<MONITORINFO>() as u32;
+        let mut x = current.left;
+        let mut y = current.top;
+        if GetMonitorInfoW(MonitorFromWindow(HWND_MAIN, MONITOR_DEFAULTTONEAREST), &mut monitor) != 0 {
+            let work = monitor.rcWork;
+            x = x.clamp(work.left, (work.right - w).max(work.left));
+            y = y.clamp(work.top, (work.bottom - h).max(work.top));
+        }
+        SetWindowPos(HWND_MAIN, null_mut(), x, y, w, h, SWP_NOZORDER | SWP_NOACTIVATE);
         if done {
             UI.get().unwrap().lock().unwrap().animation = None;
             create_edit();
@@ -1313,8 +1316,8 @@ fn main() {
             class.as_ptr(),
             wide("Raze Macro").as_ptr(),
             WS_POPUP | WS_CLIPCHILDREN,
-            CW_USEDEFAULT,
-            CW_USEDEFAULT,
+            (GetSystemMetrics(SM_CXSCREEN) - px(w)) / 2,
+            (GetSystemMetrics(SM_CYSCREEN) - px(h)) / 2,
             px(w),
             px(h),
             null_mut(),
