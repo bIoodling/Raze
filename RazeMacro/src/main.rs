@@ -884,12 +884,24 @@ unsafe fn tick_animation() {
         monitor.cbSize = size_of::<MONITORINFO>() as u32;
         let mut x = current.left;
         let mut y = current.top;
-        if GetMonitorInfoW(MonitorFromWindow(HWND_MAIN, MONITOR_DEFAULTTONEAREST), &mut monitor) != 0 {
+        if GetMonitorInfoW(
+            MonitorFromWindow(HWND_MAIN, MONITOR_DEFAULTTONEAREST),
+            &mut monitor,
+        ) != 0
+        {
             let work = monitor.rcWork;
             x = x.clamp(work.left, (work.right - w).max(work.left));
             y = y.clamp(work.top, (work.bottom - h).max(work.top));
         }
-        SetWindowPos(HWND_MAIN, null_mut(), x, y, w, h, SWP_NOZORDER | SWP_NOACTIVATE);
+        SetWindowPos(
+            HWND_MAIN,
+            null_mut(),
+            x,
+            y,
+            w,
+            h,
+            SWP_NOZORDER | SWP_NOACTIVATE,
+        );
         if done {
             UI.get().unwrap().lock().unwrap().animation = None;
             create_edit();
