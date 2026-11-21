@@ -7,6 +7,8 @@ Automated CI gates:
 - Original engine timing function compared with the supplied ZIP, ignoring formatting.
 - Rust formatting, Clippy with warnings denied, model and UI geometry unit tests.
 - Default development feature and development-disabled activation tests.
+- Own hidden HWND lifecycle: native EDIT replacement, rate validation, settings disk round trip,
+  binding duplicate/clear, close/cancel and cached development activation. No physical inputs.
 - Release compilation with the committed dependency lockfile.
 - Sixteen offscreen GDI renders (four screens at 96/120/144/192 DPI).
 - Silent installer and uninstaller, payload and both shortcut locations.
@@ -25,7 +27,7 @@ Interactive acceptance still requires an isolated Windows VM:
 - Check modifier combinations, duplicate bindings, release while focus changes,
   hidden UI recovery, sleep/resume and clean exit during active output.
 - Check transitions, close/cancel reversal and presentation on a 165+ Hz display.
-  Animations use elapsed time and a 6 ms requested timer; Windows scheduling and
+  Animations use elapsed time and a 6 ms requested high-resolution waitable timer; Windows scheduling and
   compositor limits mean a 165 Hz cadence is not guaranteed.
 - Check interactive install, optional desktop shortcut and launch-after-install.
 

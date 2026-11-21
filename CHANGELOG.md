@@ -5,6 +5,6 @@
 - Native numeric text editing, smaller binding placeholders and unassigned defaults.
 - Strict single-key validation, duplicate checks, clear/cancel and persisted settings.
 - Compact dashboard, offline development activation and same-window close/cancel.
-- Native window dragging, double-buffered paint and elapsed-time transitions.
+- Native window dragging, double-buffered paint and elapsed-time transitions with a high-resolution frame timer.
 - Preserved high-resolution macro timing and the existing 1400 maximum.
 - Branded per-user installer, cloud Windows CI and offscreen DPI renders.

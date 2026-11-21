@@ -116,7 +116,11 @@ pub fn assign(c: &mut Config, target: CaptureTarget, b: KeyBinding) -> Result<()
         return Err("Use A–Z, 0–9, F1–F11 or Mouse3–5");
     }
     // Derive scan codes from the validated VK at injection time; never trust persisted scan metadata.
-    let b = if b.kind == BindKind::Keyboard { KeyBinding::keyboard(b.vk) } else { b };
+    let b = if b.kind == BindKind::Keyboard {
+        KeyBinding::keyboard(b.vk)
+    } else {
+        b
+    };
     let others = match target {
         CaptureTarget::Spam => [c.macro_key, c.ui_key],
         CaptureTarget::Macro => [c.spam, c.ui_key],
@@ -303,7 +307,10 @@ mod tests {
     }
     #[test]
     fn both_modes_require_control_bindings() {
-        let mut c = Config { macro_key: KeyBinding::mouse(4), ..Config::default() };
+        let mut c = Config {
+            macro_key: KeyBinding::mouse(4),
+            ..Config::default()
+        };
         assert!(!can_activate(c));
         c.ui_key = KeyBinding::mouse(5);
         assert!(can_activate(c));

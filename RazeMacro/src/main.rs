@@ -36,6 +36,7 @@ include!("engine.rs");
 include!("input.rs");
 
 const WM_REFRESH: u32 = WM_APP + 10;
+const WM_FRAME: u32 = WM_APP + 11;
 const WM_TRAY: u32 = WM_APP + 1;
 const INJECTED_TAG: usize = 0x4849_4B41;
 const WIDTH: i32 = 376;
@@ -100,6 +101,7 @@ struct Shared {
 static SHARED: OnceLock<Arc<Shared>> = OnceLock::new();
 static UI: OnceLock<Mutex<UiState>> = OnceLock::new();
 static ACTIVATED: AtomicBool = AtomicBool::new(false);
+static FRAME_WAKE: OnceLock<isize> = OnceLock::new();
 static mut HWND_MAIN: HWND = null_mut();
 static mut EDIT: HWND = null_mut();
 static mut EDIT_PROC: WNDPROC = None;
@@ -129,10 +131,7 @@ fn point_in(r: RECT, x: i32, y: i32) -> bool {
     x >= r.left && x < r.right && y >= r.top && y < r.bottom
 }
 fn lparam_xy(lp: LPARAM) -> (i32, i32) {
-    (
-        ((lp as i16) as i32),
-        (((lp >> 16) as i16) as i32),
-    )
+    (((lp as i16) as i32), (((lp >> 16) as i16) as i32))
 }
 unsafe fn fill_round(hdc: HDC, r: RECT, radius: i32, color: COLORREF) {
     let brush = CreateSolidBrush(color);
@@ -162,6 +161,9 @@ unsafe fn text(hdc: HDC, s: &str, r: RECT, color: COLORREF, font: HFONT, flags: 
     SelectObject(hdc, old);
 }
 fn data_dir() -> PathBuf {
+    if std::env::args().any(|a| a == "--ui-smoke") {
+        return std::env::temp_dir().join(format!("RazeMacro-Smoke-{}", std::process::id()));
+    }
     std::env::var_os("LOCALAPPDATA")
         .map(PathBuf::from)
         .unwrap_or_else(std::env::temp_dir)
@@ -856,7 +858,7 @@ unsafe fn transition(target: Screen) {
             to,
         });
     }
-    SetTimer(HWND_MAIN, 1, 6, None);
+    SetEvent(*FRAME_WAKE.get().unwrap() as HANDLE);
     InvalidateRect(HWND_MAIN, null(), 0);
 }
 unsafe fn tick_animation() {
@@ -883,7 +885,6 @@ unsafe fn tick_animation() {
             SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE,
         );
         if done {
-            KillTimer(HWND_MAIN, 1);
             UI.get().unwrap().lock().unwrap().animation = None;
             create_edit();
         }
@@ -1099,10 +1100,8 @@ unsafe extern "system" fn wndproc(hwnd: HWND, msg: u32, wp: WPARAM, lp: LPARAM) 
             handle_raw_input(lp);
             DefWindowProcW(hwnd, msg, wp, lp)
         }
-        WM_TIMER => {
-            if wp == 1 {
-                tick_animation();
-            }
+        WM_FRAME => {
+            tick_animation();
             0
         }
         WM_COMMAND => {
@@ -1177,6 +1176,7 @@ unsafe extern "system" fn wndproc(hwnd: HWND, msg: u32, wp: WPARAM, lp: LPARAM) 
             0
         }
         WM_DPICHANGED => {
+            UI.get().unwrap().lock().unwrap().animation = None;
             UI.get().unwrap().lock().unwrap().scale = (wp & 0xFFFF) as f64 / 96.0;
             let r = &*(lp as *const RECT);
             let s = UI.get().unwrap().lock().unwrap().screen;
@@ -1242,7 +1242,9 @@ fn main() {
         SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
         let stop = CreateEventW(null(), 1, 0, null());
         let wake = CreateEventW(null(), 0, 0, null());
-        if stop.is_null() || wake.is_null() {
+        let frames = CreateEventW(null(), 0, 0, null());
+        FRAME_WAKE.set(frames as isize).ok();
+        if stop.is_null() || wake.is_null() || frames.is_null() {
             return;
         }
         let config = fs::read_to_string(data_dir().join("config.ini"))
@@ -1320,18 +1322,25 @@ fn main() {
             return;
         }
         // Native non-client dragging: Windows owns the drag loop; no cursor polling.
+        if std::env::args().any(|a| a == "--ui-smoke") { run_ui_smoke(); DestroyWindow(HWND_MAIN); CloseHandle(stop); CloseHandle(wake); CloseHandle(frames); return; }
         register_raw_input(HWND_MAIN);
         tray(true);
         create_edit();
+        let frame_shared = shared.clone();
+        let hwnd_value = HWND_MAIN as usize;
+        let frame_worker = thread::spawn(move || frame_pump(frame_shared, hwnd_value));
         let worker = thread::spawn(move || macro_worker(shared));
         ShowWindow(HWND_MAIN, SW_SHOW);
         UpdateWindow(HWND_MAIN);
+        if initial == Screen::Activate { SetFocus(EDIT); }
         let mut msg: MSG = zeroed();
         while GetMessageW(&mut msg, null_mut(), 0, 0) > 0 {
             TranslateMessage(&msg);
             DispatchMessageW(&msg);
         }
         let _ = worker.join();
+        let _ = frame_worker.join();
+        CloseHandle(frames);
         CloseHandle(stop);
         CloseHandle(wake);
         for font in [FONT_NORMAL, FONT_SMALL, FONT_TITLE, FONT_STATUS, FONT_EDIT] {
@@ -1343,6 +1352,7 @@ fn main() {
     }
 }
 include!("preview.rs");
+include!("smoke.rs");
 
 #[cfg(test)]
 mod ui_tests {
@@ -1375,5 +1385,40 @@ mod ui_tests {
             assert!(e >= prev);
             prev = e;
         }
+    }
+}
+
+fn frame_pump(shared: Arc<Shared>, hwnd_value: usize) {
+    unsafe {
+        let mut timer=CreateWaitableTimerExW(null(),null(),0x0000_0002,TIMER_ALL_ACCESS);
+        if timer.is_null() { timer=CreateWaitableTimerExW(null(),null(),0,TIMER_ALL_ACCESS); }
+        
+        let idle=[shared.stop_event as HANDLE,*FRAME_WAKE.get().unwrap() as HANDLE];
+        let running=[shared.stop_event as HANDLE,*FRAME_WAKE.get().unwrap() as HANDLE,timer];
+        loop {
+            if shared.exiting.load(Ordering::Acquire) { break; }
+            if UI.get().unwrap().lock().unwrap().animation.is_none() {
+                if WaitForMultipleObjects(2,idle.as_ptr(),0,INFINITE)==WAIT_OBJECT_0 { break; }
+                continue;
+            }
+            if timer.is_null() {
+                thread::sleep(std::time::Duration::from_millis(6));
+                SendMessageW(hwnd_value as HWND,WM_FRAME,0,0);
+                continue;
+            }
+            let due=-60_000i64;
+            if SetWaitableTimer(timer,&due,0,None,null(),0)==0 {
+                PostMessageW(hwnd_value as HWND,WM_FRAME,0,0);
+                thread::sleep(std::time::Duration::from_millis(6));
+                continue;
+            }
+            let result=WaitForMultipleObjects(3,running.as_ptr(),0,INFINITE);
+            if result==WAIT_OBJECT_0 { break; }
+            if result==WAIT_OBJECT_0+2 {
+                // Synchronous delivery bounds the queue to one frame and avoids stale resize bursts.
+                SendMessageW(hwnd_value as HWND,WM_FRAME,0,0);
+            }
+        }
+        CancelWaitableTimer(timer); CloseHandle(timer);
     }
 }

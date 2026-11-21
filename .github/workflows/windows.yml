@@ -26,7 +26,7 @@ jobs:
       - name: Formatting
         run: |
           cargo +stable fmt --manifest-path RazeMacro/Cargo.toml
-          rustfmt +stable --edition 2021 RazeMacro/src/engine.rs RazeMacro/src/input.rs RazeMacro/src/preview.rs
+          rustfmt +stable --edition 2021 RazeMacro/src/engine.rs RazeMacro/src/input.rs RazeMacro/src/preview.rs RazeMacro/src/smoke.rs
           python -c "import json,pathlib; print('FORMATTED_JSON:'+json.dumps({str(p).replace(chr(92),'/'):p.read_text(encoding='utf-8') for p in pathlib.Path('RazeMacro/src').glob('*.rs') if p.name!='legacy_licensing.rs'}))"
       - name: Static checks
         run: cargo +stable clippy --manifest-path RazeMacro/Cargo.toml --locked --all-targets -- -D warnings
@@ -36,6 +36,11 @@ jobs:
         run: cargo +stable test --manifest-path RazeMacro/Cargo.toml --locked --no-default-features -- --nocapture
       - name: Release build
         run: cargo +stable build --manifest-path RazeMacro/Cargo.toml --locked --release
+      - name: Native hidden window lifecycle smoke
+        run: |
+          $process = Start-Process -FilePath RazeMacro/target/release/Raze-Macro.exe -ArgumentList '--ui-smoke' -PassThru -Wait -WindowStyle Hidden
+          if ($process.ExitCode -ne 0) { throw "UI smoke failed: $($process.ExitCode)" }
+          Get-Content dist/ui-smoke.txt
       - name: Offscreen UI renders at four DPI scales
         run: |
           $process = Start-Process -FilePath RazeMacro/target/release/Raze-Macro.exe -ArgumentList '--render-previews', 'previews' -PassThru -Wait -WindowStyle Hidden
@@ -60,6 +65,7 @@ jobs:
             dist/Raze-Macro-Setup.exe
             dist/SHA256SUMS.txt
             dist/install-test.txt
+            dist/ui-smoke.txt
             previews/*.png
             previews/render-evidence.json
           if-no-files-found: error

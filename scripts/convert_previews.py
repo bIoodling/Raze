@@ -31,3 +31,8 @@ for path in Path("previews").glob("*.bmp"):
 assert len(evidence) == 16, f"Expected 16 renders, found {len(evidence)}"
 Path("previews/render-evidence.json").write_text(json.dumps(evidence, indent=2), encoding="utf-8")
 print("PASS: 16 offscreen renders at 100%, 125%, 150%, 200%")
+
+# Send only generated preview pixels to the reviewing agent through CI logs.
+import base64
+for name in ["settings-96dpi.png", "compact-96dpi.png", "confirm-96dpi.png", "activation-96dpi.png"]:
+    print("PREVIEW_IMAGE:" + json.dumps({"name":name, "data":base64.b64encode(Path("previews",name).read_bytes()).decode("ascii")}))
