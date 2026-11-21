@@ -416,7 +416,7 @@ fn main() {
         let wc = WNDCLASSW {
             lpfnWndProc: Some(proc),
             hInstance: instance,
-            hIcon: LoadIconW(instance, 1usize as *const u16),
+            hIcon: LoadIconW(instance, std::ptr::without_provenance(1)),
             hCursor: LoadCursorW(null_mut(), IDC_ARROW),
             lpszClassName: class.as_ptr(),
             ..zeroed()

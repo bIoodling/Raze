@@ -753,7 +753,9 @@ unsafe fn commit_rate() {
     }
 }
 unsafe extern "system" fn edit_proc(hwnd: HWND, msg: u32, wp: WPARAM, lp: LPARAM) -> LRESULT {
-    if msg == WM_CHAR && matches!(wp, 1 | 9 | 13 | 27) { return 0; }
+    if msg == WM_CHAR && matches!(wp, 1 | 9 | 13 | 27) {
+        return 0;
+    }
     if msg == WM_KEYDOWN {
         let screen = UI.get().unwrap().lock().unwrap().screen;
         if wp == 0x41 && GetAsyncKeyState(VK_CONTROL as i32) < 0 {

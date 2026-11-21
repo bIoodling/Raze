@@ -8,9 +8,10 @@ Automated CI gates:
 - Rust formatting, Clippy with warnings denied, model and UI geometry unit tests.
 - Default development feature and development-disabled activation tests.
 - Own hidden HWND lifecycle: native EDIT replacement, rate validation, settings disk round trip,
-  binding duplicate/clear, close/cancel and cached development activation. No physical inputs.
+  binding duplicate/clear, close/cancel, cached development activation, and real Hold/Toggle/repeat/KPS
+  activation/stop state transitions with the injection worker disabled. No physical inputs.
 - Release compilation with the committed dependency lockfile.
-- Sixteen offscreen GDI renders (four screens at 96/120/144/192 DPI).
+- Nineteen offscreen GDI renders (four app screens at 96/120/144/192 DPI plus three installer stages).
 - Silent installer and uninstaller, payload and both shortcut locations.
 - SHA-256 of the setup executable and downloadable evidence.
 

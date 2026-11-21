@@ -8,7 +8,7 @@ on:
 permissions:
   contents: read
 concurrency:
-  group: windows-${{ github.ref }}
+  group: windows-${{ github.head_ref || github.ref_name }}
   cancel-in-progress: true
 jobs:
   windows:
@@ -25,9 +25,10 @@ jobs:
         run: python scripts/check_engine.py
       - name: Formatting
         run: |
-          cargo +stable fmt --manifest-path RazeMacro/Cargo.toml
-          rustfmt +stable --edition 2021 RazeMacro/src/engine.rs RazeMacro/src/input.rs RazeMacro/src/preview.rs RazeMacro/src/smoke.rs
-          python -c "import json,pathlib; print('FORMATTED_JSON:'+json.dumps({str(p).replace(chr(92),'/'):p.read_text(encoding='utf-8') for p in pathlib.Path('RazeMacro/src').glob('*.rs') if p.name!='legacy_licensing.rs'}))"
+          cargo +stable fmt --manifest-path RazeMacro/Cargo.toml -- --check
+          if ($LASTEXITCODE -ne 0) { throw 'Rust formatting failed' }
+          rustfmt +stable --edition 2021 --check RazeMacro/src/engine.rs RazeMacro/src/input.rs RazeMacro/src/preview.rs RazeMacro/src/smoke.rs
+          if ($LASTEXITCODE -ne 0) { throw 'Included module formatting failed' }
       - name: Static checks
         run: cargo +stable clippy --manifest-path RazeMacro/Cargo.toml --locked --all-targets -- -D warnings
       - name: Unit tests

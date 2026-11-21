@@ -64,7 +64,35 @@ unsafe fn run_ui_smoke() {
     assert!(dev_key_valid(
         &fs::read_to_string(data_dir().join("development.activation")).unwrap()
     ));
+    // Exercise real input state transitions without starting the injection worker.
+    let trigger = snapshot().macro_key;
+    mutate_config(|c| c.behavior = Behavior::Hold);
+    process_binding_event(trigger, true, false);
+    assert!(SHARED.get().unwrap().active.load(Ordering::Acquire));
+    process_binding_event(trigger, false, true);
+    assert!(!SHARED.get().unwrap().active.load(Ordering::Acquire));
+    mutate_config(|c| c.behavior = Behavior::Toggle);
+    process_binding_event(trigger, true, false);
+    assert!(SHARED.get().unwrap().active.load(Ordering::Acquire));
+    process_binding_event(trigger, true, false); // repeat must not toggle again
+    assert!(SHARED.get().unwrap().active.load(Ordering::Acquire));
+    process_binding_event(trigger, false, true);
+    assert!(SHARED.get().unwrap().active.load(Ordering::Acquire));
+    process_binding_event(trigger, true, false);
+    assert!(!SHARED.get().unwrap().active.load(Ordering::Acquire));
+    process_binding_event(trigger, false, true);
+    mutate_config(|c| c.mode = Mode::Kps);
+    process_binding_event(trigger, true, false);
+    assert!(!SHARED.get().unwrap().active.load(Ordering::Acquire));
+    process_binding_event(trigger, false, true);
+    mutate_config(|c| c.spam = KeyBinding::keyboard(65));
+    process_binding_event(trigger, true, false);
+    assert!(SHARED.get().unwrap().active.load(Ordering::Acquire));
+    process_binding_event(trigger, false, true);
+    transition(Screen::Confirm);
+    assert!(!SHARED.get().unwrap().active.load(Ordering::Acquire));
+    finish_test_transition();
     fs::create_dir_all("dist").unwrap();
     fs::write("dist/ui-smoke.txt",
-        "PASS: own hidden HWND lifecycle; native EDIT selection/replacement; rate validation; binding duplicates/clear; disk settings; close/cancel; cached development activation. No physical input generated. Interactive focus, dragging and cadence remain unverified.\n").unwrap();
+        "PASS: own hidden HWND lifecycle; native EDIT selection/replacement; rate validation; binding duplicates/clear; disk settings; close/cancel; cached development activation; Hold/Toggle/repeat/KPS activation/stop state transitions. No physical input generated. Interactive focus, dragging and cadence remain unverified.\n").unwrap();
 }
