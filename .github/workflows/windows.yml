@@ -1,0 +1,65 @@
+name: Windows development build
+on:
+  push:
+    branches: [macro]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: windows-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  windows:
+    runs-on: windows-2022
+    timeout-minutes: 25
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install Rust stable
+        run: rustup toolchain install stable --profile minimal --component rustfmt --component clippy
+      - name: Verify preserved timing loop
+        run: python scripts/check_engine.py
+      - name: Formatting
+        run: |
+          cargo +stable fmt --manifest-path RazeMacro/Cargo.toml
+          python -c "import json,pathlib; print('FORMATTED_JSON:'+json.dumps({str(p).replace(chr(92),'/'):p.read_text(encoding='utf-8') for p in pathlib.Path('RazeMacro/src').glob('*.rs') if p.name!='legacy_licensing.rs'}))"
+      - name: Static checks
+        run: cargo +stable clippy --manifest-path RazeMacro/Cargo.toml --locked --all-targets -- -D warnings
+      - name: Unit tests
+        run: cargo +stable test --manifest-path RazeMacro/Cargo.toml --locked -- --nocapture
+      - name: Production guard tests
+        run: cargo +stable test --manifest-path RazeMacro/Cargo.toml --locked --no-default-features -- --nocapture
+      - name: Release build
+        run: cargo +stable build --manifest-path RazeMacro/Cargo.toml --locked --release
+      - name: Offscreen UI renders at four DPI scales
+        run: |
+          $process = Start-Process -FilePath RazeMacro/target/release/Raze-Macro.exe -ArgumentList '--render-previews', 'previews' -PassThru -Wait -WindowStyle Hidden
+          if ($process.ExitCode -ne 0) { throw "Render failed: $($process.ExitCode)" }
+          python scripts/convert_previews.py
+      - name: Branded installer resources
+        run: python scripts/make_assets.py
+      - name: Build installer
+        run: |
+          $compiler = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          if (!(Test-Path -LiteralPath $compiler)) { throw 'Inno Setup 6 not present on runner' }
+          & $compiler installer/Raze.iss
+          if ($LASTEXITCODE -ne 0) { throw 'Installer compilation failed' }
+      - name: Isolated install and uninstall smoke test
+        run: ./scripts/test_installer.ps1
+      - name: Upload installer and evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: Raze-Macro-Windows-Development
+          path: |
+            dist/Raze-Macro-Setup.exe
+            dist/SHA256SUMS.txt
+            dist/install-test.txt
+            previews/*.png
+            previews/render-evidence.json
+          if-no-files-found: error
+          retention-days: 14
