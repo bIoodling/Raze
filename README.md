@@ -51,6 +51,7 @@ Then embed the core setup in the compact native installer front end:
 
 ```powershell
 $env:RAZE_INNER_SETUP = (Resolve-Path dist/Raze-Core-Setup.exe).Path
+# Optional: set RAZE_RESOURCE to a Windows SDK-compiled installer/raze.rc resource.
 cargo build --manifest-path RazeMacro/Cargo.toml --locked --release --features installer --bin Raze-Macro-Setup
 Copy-Item RazeMacro/target/release/Raze-Macro-Setup.exe dist/Raze-Macro-Setup.exe
 ```

@@ -416,7 +416,7 @@ unsafe fn logo(hdc: HDC, x: i32, y: i32, size: i32) {
         .into_iter()
         .map(|(a, b)| POINT {
             x: x + a * size / 90,
-            y: y + b * size / 65,
+            y: y + b * size / 90,
         })
         .collect();
     let brush = CreateSolidBrush(PURPLE);
@@ -753,6 +753,7 @@ unsafe fn commit_rate() {
     }
 }
 unsafe extern "system" fn edit_proc(hwnd: HWND, msg: u32, wp: WPARAM, lp: LPARAM) -> LRESULT {
+    if msg == WM_CHAR && matches!(wp, 1 | 9 | 13 | 27) { return 0; }
     if msg == WM_KEYDOWN {
         let screen = UI.get().unwrap().lock().unwrap().screen;
         if wp == 0x41 && GetAsyncKeyState(VK_CONTROL as i32) < 0 {
@@ -1190,6 +1191,7 @@ unsafe extern "system" fn wndproc(hwnd: HWND, msg: u32, wp: WPARAM, lp: LPARAM) 
                 px(h),
                 SWP_NOZORDER | SWP_NOACTIVATE,
             );
+            destroy_edit();
             DeleteObject(FONT_EDIT as HGDIOBJ);
             FONT_EDIT = create_font(px(17), 400);
             create_edit();
@@ -1447,4 +1449,3 @@ mod ui_tests {
         }
     }
 }
-

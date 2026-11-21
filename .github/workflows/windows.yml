@@ -57,6 +57,11 @@ jobs:
       - name: Build compact branded installer front end
         run: |
           $env:RAZE_INNER_SETUP = (Resolve-Path dist/Raze-Core-Setup.exe).Path
+          $rc = Get-ChildItem "${env:ProgramFiles(x86)}\Windows Kits\10\bin\*\x64\rc.exe" | Sort-Object FullName | Select-Object -Last 1
+          if (!$rc) { throw 'Windows SDK resource compiler missing' }
+          & $rc.FullName /nologo /fo dist/raze.res installer/raze.rc
+          if ($LASTEXITCODE -ne 0) { throw 'Installer resources failed' }
+          $env:RAZE_RESOURCE = (Resolve-Path dist/raze.res).Path
           cargo +stable clippy --manifest-path RazeMacro/Cargo.toml --locked --features installer --bin Raze-Macro-Setup -- -D warnings
           if ($LASTEXITCODE -ne 0) { throw 'Installer static checks failed' }
           cargo +stable build --manifest-path RazeMacro/Cargo.toml --locked --release --features installer --bin Raze-Macro-Setup
