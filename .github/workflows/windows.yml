@@ -26,6 +26,7 @@ jobs:
       - name: Formatting
         run: |
           cargo +stable fmt --manifest-path RazeMacro/Cargo.toml
+          rustfmt +stable --edition 2021 RazeMacro/src/engine.rs RazeMacro/src/input.rs RazeMacro/src/preview.rs
           python -c "import json,pathlib; print('FORMATTED_JSON:'+json.dumps({str(p).replace(chr(92),'/'):p.read_text(encoding='utf-8') for p in pathlib.Path('RazeMacro/src').glob('*.rs') if p.name!='legacy_licensing.rs'}))"
       - name: Static checks
         run: cargo +stable clippy --manifest-path RazeMacro/Cargo.toml --locked --all-targets -- -D warnings
