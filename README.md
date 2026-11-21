@@ -47,6 +47,14 @@ python scripts/make_assets.py
 & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" installer/Raze.iss
 ```
 
+Then embed the core setup in the compact native installer front end:
+
+```powershell
+$env:RAZE_INNER_SETUP = (Resolve-Path dist/Raze-Core-Setup.exe).Path
+cargo build --manifest-path RazeMacro/Cargo.toml --locked --release --features installer --bin Raze-Macro-Setup
+Copy-Item RazeMacro/target/release/Raze-Macro-Setup.exe dist/Raze-Macro-Setup.exe
+```
+
 Output: `dist/Raze-Macro-Setup.exe`. Inno Setup 6 is needed to package, not to run.
 CI uses GitHub-hosted `windows-2022` runners only. It never targets a personal PC.
 The installer is per-user, creates Start Menu shortcuts, offers a desktop shortcut,

@@ -1322,7 +1322,14 @@ fn main() {
             return;
         }
         // Native non-client dragging: Windows owns the drag loop; no cursor polling.
-        if std::env::args().any(|a| a == "--ui-smoke") { run_ui_smoke(); DestroyWindow(HWND_MAIN); CloseHandle(stop); CloseHandle(wake); CloseHandle(frames); return; }
+        if std::env::args().any(|a| a == "--ui-smoke") {
+            run_ui_smoke();
+            DestroyWindow(HWND_MAIN);
+            CloseHandle(stop);
+            CloseHandle(wake);
+            CloseHandle(frames);
+            return;
+        }
         register_raw_input(HWND_MAIN);
         tray(true);
         create_edit();
@@ -1332,7 +1339,9 @@ fn main() {
         let worker = thread::spawn(move || macro_worker(shared));
         ShowWindow(HWND_MAIN, SW_SHOW);
         UpdateWindow(HWND_MAIN);
-        if initial == Screen::Activate { SetFocus(EDIT); }
+        if initial == Screen::Activate {
+            SetFocus(EDIT);
+        }
         let mut msg: MSG = zeroed();
         while GetMessageW(&mut msg, null_mut(), 0, 0) > 0 {
             TranslateMessage(&msg);
@@ -1353,6 +1362,57 @@ fn main() {
 }
 include!("preview.rs");
 include!("smoke.rs");
+
+fn frame_pump(shared: Arc<Shared>, hwnd_value: usize) {
+    unsafe {
+        let mut timer = CreateWaitableTimerExW(null(), null(), 0x0000_0002, TIMER_ALL_ACCESS);
+        if timer.is_null() {
+            timer = CreateWaitableTimerExW(null(), null(), 0, TIMER_ALL_ACCESS);
+        }
+
+        let idle = [
+            shared.stop_event as HANDLE,
+            *FRAME_WAKE.get().unwrap() as HANDLE,
+        ];
+        let running = [
+            shared.stop_event as HANDLE,
+            *FRAME_WAKE.get().unwrap() as HANDLE,
+            timer,
+        ];
+        loop {
+            if shared.exiting.load(Ordering::Acquire) {
+                break;
+            }
+            if UI.get().unwrap().lock().unwrap().animation.is_none() {
+                if WaitForMultipleObjects(2, idle.as_ptr(), 0, INFINITE) == WAIT_OBJECT_0 {
+                    break;
+                }
+                continue;
+            }
+            if timer.is_null() {
+                thread::sleep(std::time::Duration::from_millis(6));
+                SendMessageW(hwnd_value as HWND, WM_FRAME, 0, 0);
+                continue;
+            }
+            let due = -60_000i64;
+            if SetWaitableTimer(timer, &due, 0, None, null(), 0) == 0 {
+                PostMessageW(hwnd_value as HWND, WM_FRAME, 0, 0);
+                thread::sleep(std::time::Duration::from_millis(6));
+                continue;
+            }
+            let result = WaitForMultipleObjects(3, running.as_ptr(), 0, INFINITE);
+            if result == WAIT_OBJECT_0 {
+                break;
+            }
+            if result == WAIT_OBJECT_0 + 2 {
+                // Synchronous delivery bounds the queue to one frame and avoids stale resize bursts.
+                SendMessageW(hwnd_value as HWND, WM_FRAME, 0, 0);
+            }
+        }
+        CancelWaitableTimer(timer);
+        CloseHandle(timer);
+    }
+}
 
 #[cfg(test)]
 mod ui_tests {
@@ -1388,37 +1448,3 @@ mod ui_tests {
     }
 }
 
-fn frame_pump(shared: Arc<Shared>, hwnd_value: usize) {
-    unsafe {
-        let mut timer=CreateWaitableTimerExW(null(),null(),0x0000_0002,TIMER_ALL_ACCESS);
-        if timer.is_null() { timer=CreateWaitableTimerExW(null(),null(),0,TIMER_ALL_ACCESS); }
-        
-        let idle=[shared.stop_event as HANDLE,*FRAME_WAKE.get().unwrap() as HANDLE];
-        let running=[shared.stop_event as HANDLE,*FRAME_WAKE.get().unwrap() as HANDLE,timer];
-        loop {
-            if shared.exiting.load(Ordering::Acquire) { break; }
-            if UI.get().unwrap().lock().unwrap().animation.is_none() {
-                if WaitForMultipleObjects(2,idle.as_ptr(),0,INFINITE)==WAIT_OBJECT_0 { break; }
-                continue;
-            }
-            if timer.is_null() {
-                thread::sleep(std::time::Duration::from_millis(6));
-                SendMessageW(hwnd_value as HWND,WM_FRAME,0,0);
-                continue;
-            }
-            let due=-60_000i64;
-            if SetWaitableTimer(timer,&due,0,None,null(),0)==0 {
-                PostMessageW(hwnd_value as HWND,WM_FRAME,0,0);
-                thread::sleep(std::time::Duration::from_millis(6));
-                continue;
-            }
-            let result=WaitForMultipleObjects(3,running.as_ptr(),0,INFINITE);
-            if result==WAIT_OBJECT_0 { break; }
-            if result==WAIT_OBJECT_0+2 {
-                // Synchronous delivery bounds the queue to one frame and avoids stale resize bursts.
-                SendMessageW(hwnd_value as HWND,WM_FRAME,0,0);
-            }
-        }
-        CancelWaitableTimer(timer); CloseHandle(timer);
-    }
-}

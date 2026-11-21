@@ -54,6 +54,17 @@ jobs:
           if (!(Test-Path -LiteralPath $compiler)) { throw 'Inno Setup 6 not present on runner' }
           & $compiler installer/Raze.iss
           if ($LASTEXITCODE -ne 0) { throw 'Installer compilation failed' }
+      - name: Build compact branded installer front end
+        run: |
+          $env:RAZE_INNER_SETUP = (Resolve-Path dist/Raze-Core-Setup.exe).Path
+          cargo +stable clippy --manifest-path RazeMacro/Cargo.toml --locked --features installer --bin Raze-Macro-Setup -- -D warnings
+          if ($LASTEXITCODE -ne 0) { throw 'Installer static checks failed' }
+          cargo +stable build --manifest-path RazeMacro/Cargo.toml --locked --release --features installer --bin Raze-Macro-Setup
+          if ($LASTEXITCODE -ne 0) { throw 'Installer front end build failed' }
+          Copy-Item RazeMacro/target/release/Raze-Macro-Setup.exe dist/Raze-Macro-Setup.exe
+          $preview = Start-Process -FilePath dist/Raze-Macro-Setup.exe -ArgumentList '--render-previews' -PassThru -Wait -WindowStyle Hidden
+          if ($preview.ExitCode -ne 0) { throw 'Installer previews failed' }
+          python scripts/convert_previews.py
       - name: Isolated install and uninstall smoke test
         run: ./scripts/test_installer.ps1
       - name: Upload installer and evidence

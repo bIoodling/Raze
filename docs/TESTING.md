@@ -31,8 +31,8 @@ Interactive acceptance still requires an isolated Windows VM:
   compositor limits mean a 165 Hz cadence is not guaranteed.
 - Check interactive install, optional desktop shortcut and launch-after-install.
 
-Known design differences: Inno Setup provides the installer wizard's native controls
-for installation/uninstallation reliability; its black/purple styling and R branding
-do not exactly reproduce the tiny three-stage mockup. The R is a vector reconstruction,
+The installer uses a compact native three-stage front end around an embedded,
+silent Inno Setup engine for installation/uninstallation reliability. Its moving
+progress indicator is indeterminate; it does not invent a percentage. The R is a vector reconstruction,
 not an original supplied vector asset. No pixel-perfect or jitter-free certification
 has been performed. Development activation is not suitable for a production release.

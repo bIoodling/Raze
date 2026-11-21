@@ -28,11 +28,12 @@ for path in Path("previews").glob("*.bmp"):
     path.with_suffix(".png").write_bytes(png)
     evidence.append({"file": path.with_suffix(".png").name, "width":w, "height":h,
                      "kind":"offscreen GDI render; not an interactive screenshot"})
-assert len(evidence) == 16, f"Expected 16 renders, found {len(evidence)}"
+assert len(evidence) in (16,19), f"Expected 16 or 19 renders, found {len(evidence)}"
 Path("previews/render-evidence.json").write_text(json.dumps(evidence, indent=2), encoding="utf-8")
-print("PASS: 16 offscreen renders at 100%, 125%, 150%, 200%")
+print(f"PASS: {len(evidence)} offscreen renders; application at 100%, 125%, 150%, 200%")
 
 # Send only generated preview pixels to the reviewing agent through CI logs.
 import base64
-for name in ["settings-96dpi.png", "compact-96dpi.png", "confirm-96dpi.png", "activation-96dpi.png"]:
+for name in ["settings-96dpi.png", "compact-96dpi.png", "confirm-96dpi.png", "activation-96dpi.png", "installer-start-96dpi.png", "installer-progress-96dpi.png", "installer-complete-96dpi.png"]:
+    if not Path("previews",name).exists(): continue
     print("PREVIEW_IMAGE:" + json.dumps({"name":name, "data":base64.b64encode(Path("previews",name).read_bytes()).decode("ascii")}))

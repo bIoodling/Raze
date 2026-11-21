@@ -7,9 +7,15 @@ edition = "2021"
 name = "Raze-Macro"
 path = "src/main.rs"
 
+[[bin]]
+name = "Raze-Macro-Setup"
+path = "src/setup.rs"
+required-features = ["installer"]
+
 [features]
 default = ["dev-activation"]
 dev-activation = []
+installer = []
 
 [dependencies.windows-sys]
 version = "0.61.2"
